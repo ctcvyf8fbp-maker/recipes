@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ספר המתכונים שלי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F1F4EC; --surface:#FFFFFF; --ink:#1E2A21; --muted:#5E6B5F;
+  --olive:#4F6136; --saffron:#E4A11B; --line:#D7DDCF; --chip:#E4EAD9;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141A15; --surface:#1D251E; --ink:#E9EEE3; --muted:#A3AE9F;
+    --olive:#A9C17A; --saffron:#F0B53A; --line:#2E3A30; --chip:#28332A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141A15; --surface:#1D251E; --ink:#E9EEE3; --muted:#A3AE9F;
+  --olive:#A9C17A; --saffron:#F0B53A; --line:#2E3A30; --chip:#28332A;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Assistant","Arial Hebrew","Segoe UI",Arial,sans-serif;font-size:18px;line-height:1.6}
+a{color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding:28px 20px 64px}
+h1,h2,h3{font-family:"Suez One","Frank Ruhl Libre",Georgia,serif;font-weight:400;line-height:1.15;margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--saffron);outline-offset:2px;border-radius:4px}
+
+/* home */
+.mast{padding:24px 0 20px;border-bottom:3px solid var(--ink);margin-bottom:20px}
+.mast h1{font-size:clamp(2.6rem,11vw,4.2rem)}
+.mast p{margin:6px 0 0;color:var(--muted)}
+.search{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;
+  background:var(--surface);color:var(--ink);font:inherit;margin-bottom:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.filters button{border:1.5px solid var(--line);background:transparent;border-radius:999px;padding:4px 14px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.toc{list-style:none;margin:0;padding:0}
+.toc a{display:grid;grid-template-columns:1fr auto;gap:4px 16px;text-decoration:none;padding:16px 0;border-bottom:1px solid var(--line)}
+.toc .t{font-family:"Suez One",Georgia,serif;font-size:1.45rem;line-height:1.2}
+.toc .m{color:var(--muted);font-size:.95rem;grid-column:1}
+.toc .n{grid-row:1/span 2;grid-column:2;align-self:center;color:var(--olive);font-weight:700}
+.empty{color:var(--muted);padding:24px 0}
+
+/* recipe */
+.back{background:none;border:0;padding:6px 0;cursor:pointer;color:var(--olive);font-weight:700}
+.rh{margin:16px 0 8px}
+.rh h2{font-size:clamp(2.2rem,9vw,3.4rem)}
+.cat{display:inline-block;background:var(--saffron);color:#1E2A21;font-weight:700;border-radius:6px;padding:0 10px;margin-bottom:10px}
+.facts{display:flex;flex-wrap:wrap;gap:6px 20px;color:var(--muted);margin:10px 0 0}
+.facts b{color:var(--ink)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
+.tags span{background:var(--chip);border-radius:6px;padding:0 10px;font-size:.9rem}
+section{margin-top:34px}
+section h3{font-size:1.6rem;margin-bottom:10px}
+.ing{list-style:none;margin:0;padding:0}
+.ing label{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line);cursor:pointer}
+.ing input{width:22px;height:22px;margin-top:4px;accent-color:var(--olive);flex:none}
+.ing input:checked + span{text-decoration:line-through;color:var(--muted)}
+.ing .q{font-weight:700}
+.ing .ih{font-weight:700;color:var(--olive);padding:18px 0 2px}
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:44px 1fr;gap:12px;padding:12px 0}
+.steps li::before{content:counter(s);font-family:"Suez One",Georgia,serif;font-size:1.7rem;line-height:1;color:var(--olive);
+  width:44px;height:44px;border:2px solid var(--olive);border-radius:50%;display:grid;place-items:center}
+.nut{width:100%;border-collapse:collapse;background:var(--surface);border-radius:10px;overflow:hidden}
+.nut th,.nut td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line)}
+.nut thead th{font-weight:700;background:var(--chip)}
+.note{background:var(--surface);border-right:4px solid var(--saffron);padding:12px 16px;border-radius:6px}
+.vid{display:inline-flex;align-items:center;gap:8px;margin-top:18px;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:700;padding:10px 20px;border-radius:999px}
+.src{color:var(--muted);font-size:.95rem;margin-top:34px;border-top:1px solid var(--line);padding-top:14px}
+@media (prefers-reduced-motion:no-preference){ #view{animation:in .25s ease-out} @keyframes in{from{opacity:0}to{opacity:1}} }
+</style>
+</head>
+<body>
+<main class="wrap" id="view"></main>
+
+<script>
+/* ===== מתכונים: כל מתכון חדש נוסף כאן ===== */
+const RECIPES = [
+  {
+    id: "onion-ring-chips",
+    title: "צ’יפס טבעות בצל ופרמזן",
+    subtitle: "2 מרכיבים עיקריים, בלי טיגון",
+    tags: ["עתיר חלבון", "דל פחמימות", "בתנור"],
+    servings: 4,
+    prep: "10 דקות",
+    cook: "18 דקות",
+    ingredients: [
+      { q: "2", t: "בצלים לבנים קטנים, פרוסים לטבעות בעובי כחצי ס״מ" },
+      { q: "200 גרם", t: "פרמזן מגורד (7 אונקיות)" },
+      { q: "½ כף", t: "שמן זית" },
+      { q: "", t: "מלח, אבקת שום ופפריקה – לפי הטעם" }
+    ],
+    steps: [
+      "מחממים תנור ל-200°C ומרפדים תבנית שטוחה עם שוליים (כ-30×43 ס״מ) בנייר אפייה. לא נייר כסף ולא נייר שעווה – הם נדבקים.",
+      "מפזרים את הפרמזן בשכבה דקה ואחידה על כל התבנית.",
+      "מניחים את טבעות הבצל על הגבינה, צמודות אחת לשנייה אבל לא חופפות.",
+      "מברישים קלות את החלק העליון בשמן זית ומתבלים במלח, אבקת שום ופפריקה.",
+      "אופים 18 דקות, עד שהגבינה מזהיבה.",
+      "מצננים 5–10 דקות, שוברים לחתיכות ומגישים."
+    ],
+    nutrition: { total: [940, 77, 20, 61] },
+    note: "הגבינה מתקשה תוך כדי הצינון – לא לשבור מוקדם מדי.",
+    source: "Josh New (דיאטן קליני) בטיקטוק · יוצר מקורי: ‎@Hungry.happens",
+    video: "https://vt.tiktok.com/ZSp2CEGMU/"
+  },
+  {
+    id: "dressed-tomatoes",
+    title: "עגבניות מתובלות ברוטב ירוק ובזיליקום קריספי",
+    subtitle: "סלט עגבניות על רוטב עשבי תיבול, עם קרוטונים וגבינת עיזים",
+    tags: ["סלט", "לאירוח", "בלי תנור"],
+    prep: "20 דקות",
+    ingredients: [
+      { h: "לרוטב עשבי התיבול" },
+      { q: "½ צרור", t: "פטרוזיליה" },
+      { q: "2 חופנים", t: "עלי בזיליקום" },
+      { q: "½ כוס", t: "עלי תרד דחוסים (בשביל הצבע הירוק)" },
+      { q: "2 כפות", t: "עירית קצוצה" },
+      { q: "2", t: "פילה אנשובי" },
+      { q: "1 כף", t: "מיץ לימון" },
+      { q: "1", t: "שן שום" },
+      { q: "1 כף", t: "חומץ שרי" },
+      { q: "1 כף", t: "שמן זית" },
+      { q: "¼ כוס", t: "מיונז (כ-60 גרם)" },
+      { q: "1 כף", t: "יוגורט" },
+      { q: "", t: "מלח ופלפל" },
+      { h: "לעגבניות" },
+      { q: "600 גרם", t: "עגבניות מעורבות" },
+      { q: "1 כף", t: "שמן זית" },
+      { q: "1 כפית", t: "חומץ יין אדום" },
+      { q: "", t: "מלח ופלפל" },
+      { h: "להגשה" },
+      { q: "2", t: "פרוסות לחם מחמצת" },
+      { q: "", t: "שמן זית לטיגון" },
+      { q: "", t: "עלי בזיליקום" },
+      { q: "", t: "גבינת עיזים" }
+    ],
+    steps: [
+      "מכניסים את כל מרכיבי הרוטב לבלנדר וטוחנים עד לקבלת רוטב אחיד. טועמים ומתקנים מלח וחומציות.",
+      "חותכים את העגבניות לנתחים בגדלים שונים ומעבירים לקערה עם שמן הזית, החומץ, מלח ופלפל. מערבבים ומניחים לטעמים להתפתח.",
+      "מחממים מחבת עם מעט שמן זית. קורעים את הלחם לנתחים ומטגנים כמה דקות מכל צד עד להזהבה.",
+      "מוסיפים עוד מעט שמן ומטגנים את עלי הבזיליקום כ-5 שניות, עד שהם נעשים פריכים ושקופים. זהירות, השמן מתיז.",
+      "מרכיבים על מגש גדול: קודם הרוטב, מעליו העגבניות, הקרוטונים, הבזיליקום וגבינת העיזים. יוצקים מעל את הנוזלים שנשארו בקערה ומגישים."
+    ],
+    note: "אפשר להשאיר את הבזיליקום טרי, אבל הטיגון הופך אותו לפריך ושקוף ומוסיף טקסטורה.",
+    source: "Lauren Morgan ‏(‎@bylaurenmorgan) באינסטגרם",
+    video: "https://www.instagram.com/reel/DW3DGNNkVTo/"
+  },
+  {
+    id: "stuffed-shells",
+    title: "קונכיות פסטה ממולאות",
+    subtitle: "במילוי ריקוטה ובזיליקום, ברוטב עגבניות ובגבינות",
+    tags: ["פסטה", "צמחוני", "בתנור"],
+    cook: "25 דקות",
+    ingredients: [
+      { h: "לפסטה ולמילוי" },
+      { q: "½ שקית", t: "פסטה קונכיות גדולות (קונצ׳יליוני)" },
+      { q: "1 חבילה", t: "עלי בזיליקום" },
+      { q: "300 גרם", t: "ריקוטה" },
+      { q: "150 גרם", t: "גבינת קשקבל מגוררת" },
+      { q: "2", t: "שיני שום" },
+      { q: "", t: "מעט מלח" },
+      { h: "לרוטב" },
+      { q: "3 כפות", t: "שמן זית" },
+      { q: "3", t: "שיני שום כתושות" },
+      { q: "600 גרם", t: "עגבניות מרוסקות (פחית וחצי)" },
+      { q: "2 כפות", t: "רסק עגבניות" },
+      { q: "½ כוס", t: "מים" },
+      { q: "1 חופן", t: "עלי בזיליקום קצוצים" },
+      { q: "", t: "מלח" },
+      { h: "לציפוי" },
+      { q: "100 גרם", t: "גבינת מוצרלה מגוררת" },
+      { q: "50 גרם", t: "גבינת גאודה עיזים מגוררת" }
+    ],
+    steps: [
+      "מחממים תנור ל-180°C. מבשלים את הפסטה לפי הוראות היצרן, מסננים ומצננים.",
+      "מכינים את המילוי: טוחנים במעבד מזון את הבזיליקום והשום, מוסיפים ריקוטה, קשקבל ומלח ומערבבים עד לתערובת חלקה.",
+      "ממלאים את הקונכיות במילוי בעזרת כפית או שקית זילוף.",
+      "מכינים את הרוטב: במחבת עם מעט שמן זית מטגנים את השום, בזהירות שלא יישרף. מוסיפים עגבניות מרוסקות, בזיליקום, רסק עגבניות, מים ומלח, ומבשלים כמה דקות.",
+      "מעבירים את הרוטב לתבנית אפייה ומסדרים עליו את הקונכיות אחת ליד השנייה. מפזרים מעל מוצרלה וגאודה.",
+      "אופים כ-25 דקות ומגישים."
+    ],
+    source: "‎@adimarom5 באינסטגרם",
+    video: "https://www.instagram.com/reel/C7RfqGDs_hP/"
+  },
+  {
+    id: "rolled-cookies",
+    title: "עוגיות מגולגלות ממולאות",
+    subtitle: "נוטלה, לוטוס קראנץ׳, שוקולד לבן או ממרח עוגיות",
+    category: "קינוחים",
+    tags: ["עוגיות", "בתנור"],
+    cook: "20–25 דקות",
+    ingredients: [
+      { h: "לבצק" },
+      { q: "850 גרם", t: "קמח מנופה (קילו פחות כוס וכף)" },
+      { q: "1 שקית", t: "אבקת אפייה" },
+      { q: "3 כפות", t: "אבקת סוכר" },
+      { q: "200 גרם", t: "חמאה רכה, מחמאה או נטורינה" },
+      { q: "1 כוס", t: "שמן" },
+      { q: "1 כוס", t: "מיץ תפוזים" },
+      { q: "", t: "קורט מלח" },
+      { q: "1 כפית", t: "מחית וניל (או שקית סוכר וניל)" },
+      { h: "למילוי ולקישוט" },
+      { q: "", t: "ממרח לבחירה: נוטלה, לוטוס קראנץ׳, שוקולד לבן או ממרח עוגיות" },
+      { q: "", t: "אבקת סוכר לפידור" }
+    ],
+    steps: [
+      "בקערת מיקסר עם וו לישה שמים את כל מרכיבי הבצק ולשים 4–5 דקות, עד לבצק רך ודביק מעט שנוח לעבודה.",
+      "מחלקים ל-4 חלקים (ל-3 אם רוצים עוגיות גדולות יותר). עוטפים כל כדור בניילון נצמד ומקררים חצי שעה.",
+      "מרדדים כל חלק על נייר אפייה מקומח (אפשר לקמח מעט גם מלמעלה) ומיישרים את הדפנות למלבן מדויק.",
+      "מורחים את הממרח, מגלגלים בעזרת נייר האפייה ומסמנים בסכין פסים לחיתוך אחרי האפייה.",
+      "מקפיאים 30 דקות. לא לוותר על השלב הזה: בזכותו העוגיות נשארות מגולגלות ויפות ולא מתשטחות.",
+      "אופים בתנור שחומם מראש ל-180°C כ-20–25 דקות, עד הזהבה קלה בלבד. זמני האפייה משתנים בין תנורים.",
+      "מצננים לגמרי, מפדרים באבקת סוכר וחותכים לפי הסימון."
+    ],
+    note: "המידות לפי כוס מידה של 240 מ״ל (140 גרם קמח).",
+    source: "‎@batchen_hanoosha באינסטגרם",
+    video: "https://www.instagram.com/reel/DA7voYNC9nR/"
+  },
+  {
+    id: "meat-buns",
+    title: "לחמניות ממולאות בשר",
+    subtitle: "בצק שמרים רך עם בשר טחון, בצל מוזהב וצנוברים",
+    tags: ["מאפים", "בשרי", "בתנור"],
+    cook: "30 דקות",
+    ingredients: [
+      { h: "לבצק" },
+      { q: "500 גרם", t: "קמח" },
+      { q: "⅓ כוס", t: "סוכר (65 גרם)" },
+      { q: "⅓ כוס", t: "שמן (65 גרם)" },
+      { q: "¾ כוס", t: "מים (180 גרם)" },
+      { q: "25 גרם", t: "שמרים טריים" },
+      { q: "1", t: "ביצה בגודל M" },
+      { q: "½ כף", t: "מלח (5 גרם)" },
+      { h: "למילוי" },
+      { q: "600 גרם", t: "בשר טחון" },
+      { q: "5", t: "בצלים בינוניים, חתוכים לרצועות" },
+      { q: "100 גרם", t: "צנוברים" },
+      { q: "1 חופן", t: "כוסברה" },
+      { q: "1 כף שטוחה", t: "פפריקה מתוקה" },
+      { q: "1 כפית", t: "כמון" },
+      { q: "1 כפית", t: "כורכום" },
+      { q: "", t: "מלח לפי הטעם" },
+      { h: "לציפוי ולהגשה" },
+      { q: "1", t: "ביצה להברשה" },
+      { q: "", t: "שומשום" },
+      { q: "", t: "טחינה" }
+    ],
+    steps: [
+      "בקערת מיקסר עם וו לישה שמים את כל מרכיבי הבצק ומערבבים במהירות בינונית עד שהבצק מתאחד. מעלים מעט את המהירות ולשים עוד 10 דקות.",
+      "מעבירים לקערה משומנת מעט, מכסים ומתפיחים עד שהנפח מכפיל את עצמו, כשעה.",
+      "בינתיים מכינים את המילוי: במחבת עם מעט שמן מטגנים את הבצל עד הזהבה. מוסיפים את התבלינים ומערבבים, מוסיפים את הבשר ומערבבים עד שהוא מחליף צבע. מוסיפים כוסברה וצנוברים ומערבבים.",
+      "מחלקים את הבצק לכדורים של 90 גרם. מרדדים כל כדור לעיגול, ממלאים בבשר, סוגרים את הקצוות ומוציאים את האוויר. מעגלים מעט ומניחים על תבנית אפייה.",
+      "מניחים ללחמניות לנוח כ-20 דקות. בינתיים מחממים תנור ל-180°C טורבו.",
+      "מברישים בביצה, מפזרים שומשום ואופים כ-30 דקות, עד הזהבה מלאה.",
+      "מגישים עם טחינה בצד."
+    ],
+    source: "‎@adimarom5 באינסטגרם",
+    video: "https://www.instagram.com/reel/C5F1GebMVDv/"
+  }
+];
+/* ========================================== */
+
+const view = document.getElementById("view");
+let filter = "הכול", query = "";
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function home(){
+  const cats = ["הכול", ...new Set(RECIPES.map(r=>r.category).filter(Boolean))];
+  const list = RECIPES.filter(r =>
+    (filter==="הכול" || r.category===filter) &&
+    (!query || (r.title+r.tags.join(" ")+r.ingredients.map(i=>i.t||"").join(" ")).includes(query)));
+  view.innerHTML = `
+    <header class="mast"><h1>ספר המתכונים שלי</h1>
+      <p>${RECIPES.length} ${RECIPES.length===1?"מתכון":"מתכונים"} שנאספו מהרשת</p></header>
+    <input class="search" type="search" placeholder="חיפוש לפי שם או מרכיב…" value="${esc(query)}" aria-label="חיפוש מתכון">
+    ${cats.length>1?`<div class="filters">${cats.map(c=>`<button aria-pressed="${c===filter}">${esc(c)}</button>`).join("")}</div>`:""}
+    ${list.length ? `<ol class="toc">${list.map((r,i)=>`
+      <li><a href="#${r.id}"><span class="t">${esc(r.title)}</span>
+        <span class="m">${r.category?esc(r.category)+" · ":""}${esc(r.subtitle||"")}</span>
+        <span class="n">${RECIPES.indexOf(r)+1}</span></a></li>`).join("")}</ol>`
+      : `<p class="empty">לא נמצא מתכון. נסו מילה אחרת.</p>`}`;
+  const s = view.querySelector(".search");
+  s.addEventListener("input", e=>{query=e.target.value.trim(); home(); const n=view.querySelector(".search"); n.focus(); n.setSelectionRange(n.value.length,n.value.length);});
+  view.querySelectorAll(".filters button").forEach(b=>b.onclick=()=>{filter=b.textContent;home();});
+}
+
+function recipe(r){
+  const key = "checked-"+r.id;
+  let checked = []; try{ checked = JSON.parse(localStorage.getItem(key)||"[]"); }catch(e){}
+  const n=r.servings, [cal,p,c,f] = r.nutrition?r.nutrition.total:[], per=x=>Math.round(x/n);
+  view.innerHTML = `
+    <button class="back">→ לכל המתכונים</button>
+    <header class="rh">${r.category?`<span class="cat">${esc(r.category)}</span>`:""}<h2>${esc(r.title)}</h2>
+      <div class="facts">${n?`<span><b>${n}</b> מנות</span>`:""}${r.prep?`<span>הכנה <b>${esc(r.prep)}</b></span>`:""}${r.cook?`<span>אפייה <b>${esc(r.cook)}</b></span>`:""}</div>
+      <div class="tags">${r.tags.map(t=>`<span>${esc(t)}</span>`).join("")}</div>
+      ${r.video?`<a class="vid" href="${esc(r.video)}" target="_blank" rel="noopener">▶ לצפייה בסרטון ${r.video.includes("instagram")?"באינסטגרם":"בטיקטוק"}</a>`:""}</header>
+    <section><h3>מרכיבים</h3><ul class="ing">${r.ingredients.map((g,i)=>g.h?`<li class="ih">${esc(g.h)}</li>`:`
+      <li><label><input type="checkbox" data-i="${i}" ${checked.includes(i)?"checked":""}>
+      <span>${g.q?`<span class="q">${esc(g.q)}</span> `:""}${esc(g.t)}</span></label></li>`).join("")}</ul></section>
+    <section><h3>אופן ההכנה</h3><ol class="steps">${r.steps.map(s=>`<li><span>${esc(s)}</span></li>`).join("")}</ol></section>
+    ${r.note?`<section><p class="note">${esc(r.note)}</p></section>`:""}
+    ${r.nutrition?`<section><h3>ערכים תזונתיים</h3><div style="overflow-x:auto"><table class="nut">
+      <thead><tr><th></th><th>קלוריות</th><th>חלבון</th><th>פחמימות</th><th>שומן</th></tr></thead>
+      <tbody><tr><th>מנה</th><td>${per(cal)}</td><td>${per(p)} ג׳</td><td>${per(c)} ג׳</td><td>${per(f)} ג׳</td></tr>
+      <tr><th>כל המתכון</th><td>${cal}</td><td>${p} ג׳</td><td>${c} ג׳</td><td>${f} ג׳</td></tr></tbody></table></div></section>`:""}
+    <p class="src">מקור: ${esc(r.source)}</p>`;
+  view.querySelector(".back").onclick=()=>{location.hash="";};
+  view.querySelectorAll(".ing input").forEach(cb=>cb.onchange=()=>{
+    const i=+cb.dataset.i; checked = cb.checked ? [...checked,i] : checked.filter(x=>x!==i);
+    try{ localStorage.setItem(key, JSON.stringify(checked)); }catch(e){}
+  });
+  window.scrollTo(0,0);
+}
+
+function route(){
+  const id = location.hash.slice(1);
+  const r = RECIPES.find(x=>x.id===id);
+  r ? recipe(r) : home();
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
