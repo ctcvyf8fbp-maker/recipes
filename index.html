@@ -148,6 +148,17 @@ body.cooking{overflow:hidden}
 .ck-nav .ck-next{background:var(--olive);color:var(--bg);border-color:var(--olive)}
 .ck-nav button:disabled{opacity:.35;cursor:default}
 .ck-wake{color:var(--muted);font-size:.85rem;text-align:center;margin:12px 0 0}
+/* add */
+.addbox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:20px}
+.addbox h3{margin-bottom:8px}
+.addbox label{display:block;font-weight:600;margin-top:12px}
+.addbox input:not([type=file]),.addbox select,.addbox textarea{display:block;width:100%;margin-top:4px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--ink);font:inherit;font-weight:400}
+.addbox .f-paste,.addbox .f-alink{margin-top:10px}
+.file{display:inline-flex !important;align-items:center;gap:8px;border:1.5px dashed var(--olive);color:var(--olive);border-radius:12px;padding:12px 16px;cursor:pointer}
+.file input{position:absolute;opacity:0;width:1px;height:1px}
+.file:focus-within{outline:3px solid var(--saffron)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumbs img{width:72px;height:96px;object-fit:cover;border-radius:8px}
 /* chef */
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
 .chips button{border:1.5px dashed var(--olive);background:transparent;color:var(--olive);border-radius:999px;padding:4px 14px;cursor:pointer;font-size:.95rem}
@@ -1811,6 +1822,7 @@ function home(){
       <p>${RECIPES.length} ${RECIPES.length===1?"מתכון":"מתכונים"} שנאספו מהרשת</p></header>
     <div class="acts top">
       <a class="act act-main" href="#chef">👩‍🍳 מה נבשל? שאלי את השף</a>
+      <a class="act" href="#add">➕ הוספת מתכון</a>
       <button class="act" data-act="random">🎲 מה נבשל היום?</button>
       <a class="act" href="#shopping">🛒 רשימת קניות${cart.length?` (${cart.length})`:""}</a>
     </div>
@@ -1866,7 +1878,7 @@ function recipe(r){
   const inCart = cart.includes(r.id);
   view.innerHTML = `
     <button class="back" data-act="home">→ לכל המתכונים</button>
-    ${r.temp?`<div class="banner"><span>המתכון נוצר עכשיו עם השף ועוד לא נשמר בספר.</span>${dbApi?`<button class="act act-main" data-act="chef-save">📖 שמירה לספר</button>`:""}<a class="act" href="#chef">→ חזרה לשף</a></div>`:""}
+    ${r.temp?`<div class="banner"><span>${esc(r.tempMsg||"")}</span>${dbApi?`<button class="act act-main" data-act="chef-save">📖 שמירה לספר</button>`:`<span class="hint">שמירה לספר זמינה בקישור של Claude.</span>`}<a class="act" href="#${r.backTo||"chef"}">→ חזרה</a></div>`:""}
     ${r.image?`<figure class="hero"><img src="${r.image}" alt="${esc(r.title)}">${r.imageCredit?`<figcaption>צילום מתוך הסרטון של ${esc(r.imageCredit)}</figcaption>`:""}</figure>`:""}
     <header class="rh">${r.category?`<span class="cat">${esc(r.category)}</span>`:""}<h2>${esc(r.title)}</h2>
       <div class="facts">${r.yield?`<span><b>${esc(r.yield)}</b></span>`:n?`<span><b>${n}</b> מנות</span>`:""}${r.prep?`<span>הכנה <b>${esc(r.prep)}</b></span>`:""}${r.cook?`<span>אפייה <b>${esc(r.cook)}</b></span>`:""}</div>
@@ -1878,6 +1890,7 @@ function recipe(r){
         <button class="act" data-cart="${r.id}" aria-pressed="${inCart}">${inCart?"✓ ברשימת הקניות":"🛒 לרשימת הקניות"}</button>
         <button class="act" data-act="share">↗ שיתוף</button>
         ${r.fromChef && dbApi ? `<button class="act" data-act="chef-del">🗑 מחיקה מהספר</button>` : ""}
+        ${r.fromLocal ? `<button class="act" data-act="local-del">🗑 מחיקה מהספר</button>` : ""}
       </div></header>
     <section><h3>מרכיבים</h3><ul class="ing">${r.ingredients.map((g,i)=>g.h?`<li class="ih">${esc(g.h)}</li>`:`
       <li><label><input type="checkbox" data-i="${i}" ${checked.includes(i)?"checked":""}>
@@ -2018,14 +2031,15 @@ async function askChef(text){
   }finally{ chefBusy = null; renderChat(); }
 }
 
-function cleanRecipe(x, id){
+function cleanRecipe(x, id, tag){
   const str = v => typeof v === "string" ? v.trim() : "";
   const ings = (Array.isArray(x.ingredients) ? x.ingredients : []).map(g => g && g.h ? { h: str(g.h) } : { q: str(g && g.q), t: str(g && g.t) }).filter(g => g.h || g.t);
   const steps = (Array.isArray(x.steps) ? x.steps : []).map(str).filter(Boolean);
-  const tags = (Array.isArray(x.tags) ? x.tags : []).map(str).filter(Boolean).slice(0,4);
-  if(!tags.includes("מהשף")) tags.push("מהשף");
-  return { id, title: str(x.title) || "מתכון מהשף", subtitle: str(x.subtitle), category: CATS.includes(str(x.category)) ? str(x.category) : "",
-    tags, cook: str(x.time), ingredients: ings, steps, note: str(x.note), source: "נוצר עם השף" };
+  const tags = (Array.isArray(x.tags) ? x.tags : []).map(str).filter(Boolean).slice(0,5);
+  if(tag && !tags.includes(tag)) tags.push(tag);
+  const video = /^https?:\/\//.test(str(x.video)) ? str(x.video) : "";
+  return { id, title: str(x.title) || "מתכון חדש", subtitle: str(x.subtitle), category: CATS.includes(str(x.category)) ? str(x.category) : "",
+    tags, cook: str(x.time || x.cook), ingredients: ings, steps, note: str(x.note), source: str(x.source), video };
 }
 
 async function genRecipe(spec, btn){
@@ -2039,9 +2053,9 @@ async function genRecipe(spec, btn){
 החזירו רק JSON בצורה הזו:
 {"title":"...","subtitle":"תיאור קצר","category":"אחת מ: ${CATS.join(", ")}","tags":["עד 3 תגיות כמו צמחוני, מהיר, בתנור"],"time":"זמן כולל משוער","ingredients":[{"h":"כותרת קבוצה, לא חובה"},{"q":"200 גרם","t":"שם המרכיב"}],"steps":["..."],"note":"טיפ קצר, לא חובה"}`;
     const x = await sampleFn.json(prompt, { cache:false, signal: chefBusy.signal });
-    const r = cleanRecipe(x || {}, "tmp-" + Date.now().toString(36));
+    const r = cleanRecipe({ ...(x || {}), source: "נוצר עם השף" }, "tmp-" + Date.now().toString(36), "מהשף");
     if(!r.steps.length || !r.ingredients.length) throw { code:"upstream_error" };
-    r.temp = true; tempRecipes.push(r);
+    r.temp = true; r.backTo = "chef"; r.tempMsg = "המתכון נוצר עכשיו עם השף ועוד לא נשמר בספר."; tempRecipes.push(r);
     location.hash = r.id;
   }catch(e){
     btn.disabled = false; btn.textContent = "✨ למתכון המלא";
@@ -2049,11 +2063,12 @@ async function genRecipe(spec, btn){
   }finally{ chefBusy = null; }
 }
 
-async function saveChefRecipe(r, btn){
+async function saveRecipe(r, btn){
   if(!dbApi) return;
   btn.disabled = true; btn.textContent = "שומר…";
   const id = "chef-" + Date.now().toString(36);
   const body = cleanRecipe(r, id); delete body.id;
+  if(!body.video) delete body.video;
   body.savedAt = new Date().toISOString();
   try{
     await dbApi.collection("chef_recipes").doc(id).set(body);
@@ -2063,7 +2078,7 @@ async function saveChefRecipe(r, btn){
   }catch(e){
     btn.disabled = false; btn.textContent = "📖 שמירה לספר";
     const p = btn.parentElement.querySelector(".muted") || btn.parentElement.appendChild(document.createElement("p"));
-    p.className = "muted"; p.textContent = "לא הצלחתי לשמור. רק מי שיש לה הרשאת עריכה לספר יכולה לשמור בו מתכונים.";
+    p.className = "muted m-msg"; p.textContent = "לא הצלחתי לשמור. רק מי שיש לה הרשאת עריכה לספר יכולה לשמור בו מתכונים.";
   }
 }
 async function deleteChefRecipe(r, btn){
@@ -2077,7 +2092,7 @@ async function deleteChefRecipe(r, btn){
 
 /* חיבור ליכולות של Claude, כשהאתר נפתח מהקישור של Claude */
 if(window.claude && typeof window.claude.use === "function"){
-  claude.use("sample").then(s => { sampleFn = s; }).catch(()=>{});
+  claude.use("sample").then(async s => { sampleFn = s; if(s){ try{ imgLimits = (await s.limits()).images || null; }catch(e){} } if(location.hash === "#add") addPage(); }).catch(()=>{});
   claude.use("db").then(d => {
     if(!d) return; dbApi = d;
     d.collection("chef_recipes").onSnapshot(snap => {
@@ -2092,6 +2107,98 @@ if(window.claude && typeof window.claude.use === "function"){
     }, () => {});
   }).catch(()=>{});
 }
+
+
+/* ---------- הוספת מתכון ---------- */
+let addFiles = [], imgLimits = null, addBusy = null;
+function loadLocal(){
+  store.get("myRecipes", []).forEach(x => { const r = cleanRecipe(x, x.id); r.fromLocal = true; if(!RECIPES.some(y => y.id === r.id)) RECIPES.push(r); });
+}
+const QTY = /^([\d½¼¾⅓⅔⅛.,\/–-]+\s*(?:גרם|ג׳|ק״ג|קילו|מ״ל|מל|ליטר|כוסות|כוס|כפות|כף|כפיות|כפית|יחידות|חבילות|חבילה|שקיות|שקית|קורט|צרור|חופן|שיני|פרוסות)?)\s+(.+)$/;
+function parseIngredients(t){
+  return t.split("\n").map(l => l.replace(/^[-•*·\s]+/, "").trim()).filter(Boolean).map(l => {
+    if(/:$/.test(l)) return { h: l.replace(/:$/, "").trim() };
+    const m = l.match(QTY); return m ? { q: m[1].trim(), t: m[2].trim() } : { q: "", t: l };
+  });
+}
+function addPage(){
+  const ai = !!sampleFn && !sampleOff;
+  addFiles = [];
+  view.innerHTML = `
+    <button class="back" data-act="home">→ לכל המתכונים</button>
+    <header class="rh"><h2>הוספת מתכון</h2></header>
+    ${ai ? `<section class="addbox"><h3>מצילום מסך או טקסט</h3>
+      <p class="muted">צלמי את המתכון מאינסטגרם, מטיקטוק או מספר, או הדביקי את הטקסט. Claude יסדר אותו בעברית, עם מידות מטריות.</p>
+      ${imgLimits ? `<label class="file"><input type="file" class="f-img" accept="${esc(imgLimits.mediaTypes.join(","))}" multiple>📷 בחירת צילומי מסך</label><div class="thumbs"></div>` : ""}
+      <textarea class="f-paste" rows="4" placeholder="אפשר להדביק כאן את טקסט המתכון" aria-label="טקסט המתכון"></textarea>
+      <input class="f-alink" type="url" inputmode="url" placeholder="קישור לסרטון (לא חובה)" aria-label="קישור לסרטון">
+      <div class="acts"><button class="act act-main" data-act="add-ai">✨ סידור המתכון</button></div>
+      <p class="muted a-msg"></p></section>`
+    : `<p class="note">סידור אוטומטי מצילום מסך זמין כשפותחים את הספר מהקישור של Claude. כאן אפשר להוסיף מתכון ידנית.</p>`}
+    <section class="addbox"><h3>${ai ? "או הוספה ידנית" : "הוספה ידנית"}</h3>
+      <label>שם המתכון<input class="f-title"></label>
+      <label>קטגוריה<select class="f-cat"><option value="">בלי קטגוריה</option>${CATS.map(c=>`<option>${c}</option>`).join("")}</select></label>
+      <label>קישור לסרטון או למקור (לא חובה)<input class="f-link" type="url" inputmode="url"></label>
+      <label>מרכיבים, כל מרכיב בשורה<textarea class="f-ing" rows="6" placeholder="200 גרם קמח&#10;2 ביצים&#10;לציפוי:&#10;100 גרם שוקולד מריר"></textarea></label>
+      <span class="hint">שורה שנגמרת בנקודתיים (למשל ״לציפוי:״) תהפוך לכותרת.</span>
+      <label>אופן ההכנה, כל שלב בשורה<textarea class="f-steps" rows="6"></textarea></label>
+      <div class="acts"><button class="act act-main" data-act="add-manual">📖 שמירה לספר</button></div>
+      <p class="muted m-msg"></p>
+      ${dbApi ? "" : `<p class="hint">מתכון שמוסיפים כאן נשמר רק בטלפון הזה. כדי שיופיע לכולם, שלחי אותו אליי ואכניס אותו לספר.</p>`}
+    </section>`;
+  const fi = view.querySelector(".f-img");
+  if(fi) fi.onchange = () => {
+    addFiles = [...fi.files].slice(0, imgLimits.maxCount);
+    view.querySelector(".thumbs").innerHTML = addFiles.map(f => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
+  };
+  window.scrollTo(0,0);
+}
+async function addWithAI(btn){
+  if(addBusy) return;
+  const text = view.querySelector(".f-paste").value.trim(), link = view.querySelector(".f-alink").value.trim();
+  const msg = view.querySelector(".a-msg");
+  if(!addFiles.length && !text){ msg.textContent = "צריך לבחור צילום מסך או להדביק טקסט."; return; }
+  btn.disabled = true; msg.textContent = "Claude קורא את המתכון… זה יכול לקחת עד דקה.";
+  addBusy = new AbortController();
+  try{
+    const prompt = `לפניך מתכון${addFiles.length ? " בצילומי המסך המצורפים" : ""}${text ? " ובטקסט שלמטה" : ""}. חלצו אותו כמתכון מסודר בעברית: תרגמו אם הוא בשפה אחרת, המירו מידות למטריות וטמפרטורות לצלזיוס, ואל תשנו את המתכון עצמו ואל תמציאו מרכיבים או שלבים. השמיטו קודי הנחה, פרסומות ופניות לעוקבים. אם חסר חלק (למשל ההמשך נמצא בתגובות), החזירו מה שיש וכתבו בשדה missing מה חסר.
+source: שם היוצר או היוצרת אם מופיע (למשל ‎@name באינסטגרם), אחרת מחרוזת ריקה.
+החזירו רק JSON בצורה הזו:
+{"title":"...","subtitle":"תיאור קצר","category":"אחת מ: ${CATS.join(", ")}","tags":["עד 3 תגיות"],"time":"","ingredients":[{"h":"כותרת קבוצה, לא חובה"},{"q":"200 גרם","t":"שם המרכיב"}],"steps":["..."],"note":"","source":"","missing":""}
+${text ? "\nטקסט המתכון:\n" + text.slice(0, 12000) : ""}`;
+    const x = await sampleFn.json(prompt, { cache:false, signal: addBusy.signal, ...(addFiles.length ? { images: addFiles } : {}) });
+    const r = cleanRecipe({ ...(x||{}), video: link }, "tmp-" + Date.now().toString(36));
+    if(!r.ingredients.length && !r.steps.length) throw { code:"empty" };
+    r.temp = true; r.backTo = "add";
+    r.tempMsg = "בדקי שהמתכון נקרא נכון לפני השמירה." + (x && x.missing ? " חסר: " + String(x.missing) : "");
+    tempRecipes.push(r); location.hash = r.id;
+  }catch(e){
+    btn.disabled = false;
+    msg.textContent = e && e.code === "empty" ? "לא מצאתי מתכון בתמונות. נסי צילום ברור יותר." :
+      e && e.code === "image_rejected" ? "אחת התמונות לא התקבלה. נסי תמונה אחרת." : chefError(e);
+  }finally{ addBusy = null; }
+}
+async function addManual(btn){
+  const v = c => view.querySelector(c).value.trim();
+  const msg = view.querySelector(".m-msg");
+  const r = { title: v(".f-title"), category: v(".f-cat"), video: v(".f-link"), tags: [],
+    ingredients: parseIngredients(view.querySelector(".f-ing").value),
+    steps: view.querySelector(".f-steps").value.split("\n").map(x => x.replace(/^\s*\d+[.)]\s*/, "").trim()).filter(Boolean) };
+  if(!r.title){ msg.textContent = "חסר שם למתכון."; return; }
+  if(!r.ingredients.length && !r.steps.length){ msg.textContent = "צריך לפחות מרכיבים או שלבים."; return; }
+  if(dbApi) return saveRecipe(r, btn);
+  const id = "my-" + Date.now().toString(36);
+  const list = store.get("myRecipes", []); list.push({ ...r, id }); store.set("myRecipes", list);
+  const c = cleanRecipe(r, id); c.fromLocal = true; RECIPES.push(c);
+  location.hash = id;
+}
+function deleteLocal(r, btn){
+  if(!btn.dataset.sure){ btn.dataset.sure = "1"; btn.textContent = "בטוח? לחצי שוב"; return; }
+  store.set("myRecipes", store.get("myRecipes", []).filter(x => x.id !== r.id));
+  const i = RECIPES.indexOf(r); if(i >= 0) RECIPES.splice(i, 1);
+  location.hash = "";
+}
+loadLocal();
 
 /* ---------- לחיצות ---------- */
 document.addEventListener("click", e => {
@@ -2109,7 +2216,10 @@ document.addEventListener("click", e => {
   switch(d.act){
     case "home": location.hash = ""; break;
     case "chef-stop": if(chefBusy) chefBusy.abort(); break;
-    case "chef-save": saveChefRecipe(view.current, b); break;
+    case "chef-save": saveRecipe(view.current, b); break;
+    case "add-ai": addWithAI(b); break;
+    case "add-manual": addManual(b); break;
+    case "local-del": deleteLocal(view.current, b); break;
     case "chef-del": deleteChefRecipe(view.current, b); break;
     case "random": { const pool = view.homeList && view.homeList.length ? view.homeList : RECIPES;
       location.hash = pool[Math.floor(Math.random()*pool.length)].id; break; }
@@ -2132,6 +2242,7 @@ function route(){
   const id = location.hash.slice(1);
   if(id === "shopping") return shopping();
   if(id === "chef") return chef();
+  if(id === "add") return addPage();
   const r = byId(id);
   r ? recipe(r) : home();
 }
