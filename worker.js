@@ -21,7 +21,21 @@ export default {
       new Response(JSON.stringify(obj), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
-    if (req.method === "GET") return out(200, { ok: true, ready: !!env.GEMINI_KEY });
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      if (url.searchParams.get("test") !== "1") return out(200, { ok: true, ready: !!env.GEMINI_KEY });
+      // עמוד בדיקה: שולח שאלה קטנה לכל מודל ומראה מה גוגל עונים
+      if (!env.GEMINI_KEY) return out(200, { ready: false, problem: "GEMINI_KEY חסר" });
+      const k = env.GEMINI_KEY.trim();
+      const results = [];
+      for (const model of (env.MODEL ? [env.MODEL] : MODELS)) {
+        const r = await callGemini(k, model, JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Reply with the word ok" }] }] }));
+        let message = "";
+        try { const j = await r.json(); message = r.ok ? "עובד" : ((j.error && (j.error.status + ": " + j.error.message)) || ""); } catch {}
+        results.push({ model, status: r.status, message: message.slice(0, 300) });
+      }
+      return out(200, { ready: true, keyStart: k.slice(0, 4), keyLength: k.length, results });
+    }
     if (!ok) return out(403, { code: "forbidden" });
     if (req.method !== "POST") return out(405, { code: "method" });
     if (!env.GEMINI_KEY) return out(500, { code: "no_key" });
@@ -53,11 +67,7 @@ export default {
     const models = env.MODEL ? [env.MODEL] : MODELS;
     let lastStatus = 502;
     for (const model of models) {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
-        body: payload,
-      });
+      const r = await callGemini(env.GEMINI_KEY.trim(), model, payload);
       if (r.ok) {
         const j = await r.json();
         const text = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [])
@@ -67,6 +77,17 @@ export default {
       lastStatus = r.status;
       if (![400, 404, 429, 500, 503].includes(r.status)) break;
     }
-    return out(lastStatus === 429 ? 429 : 502, { code: lastStatus === 429 ? "rate_limited" : "upstream_error" });
+    return out(lastStatus === 429 ? 429 : 502, { code: lastStatus === 429 ? "rate_limited" : "upstream_error", status: lastStatus });
   },
 };
+
+// פנייה ל-Gemini. אם המפתח נדחה בכותרת, מנסים שוב בדרך החלופית (מפתח בכתובת).
+async function callGemini(key, model, payload) {
+  const base = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  let r = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: payload });
+  if (r.status === 400 || r.status === 401 || r.status === 403) {
+    const r2 = await fetch(base + "?key=" + encodeURIComponent(key), { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
+    if (r2.ok || r2.status === 429) return r2;
+  }
+  return r;
+}
