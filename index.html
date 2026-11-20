@@ -1936,7 +1936,7 @@ function recipe(r){
   const inCart = cart.includes(r.id);
   view.innerHTML = `
     <button class="back" data-act="home">→ לכל המתכונים</button>
-    ${r.temp?`<div class="banner"><span>${esc(r.tempMsg||"")}</span>${dbApi?`<button class="act act-main" data-act="chef-save">📖 שמירה לספר</button>`:`<span class="hint">שמירה לספר זמינה בקישור של Claude.</span>`}<a class="act" href="#${r.backTo||"chef"}">→ חזרה</a></div>`:""}
+    ${r.temp?`<div class="banner"><span>${esc(r.tempMsg||"")}</span><button class="act act-main" data-act="chef-save">📖 שמירה לספר</button>${dbApi?"":`<span class="hint">יישמר בספר בטלפון הזה.</span>`}<a class="act" href="#${r.backTo||"chef"}">→ חזרה</a></div>`:""}
     ${r.image?`<figure class="hero"><img src="${r.image}" alt="${esc(r.title)}">${r.imageCredit?`<figcaption>צילום מתוך הסרטון של ${esc(r.imageCredit)}</figcaption>`:""}</figure>`:""}
     <header class="rh">${r.category?`<span class="cat">${esc(r.category)}</span>`:""}<h2>${esc(r.title)}</h2>
       <div class="facts">${r.yield?`<span><b>${esc(r.yield)}</b></span>`:n?`<span><b>${n}</b> מנות</span>`:""}${r.prep?`<span>הכנה <b>${esc(r.prep)}</b></span>`:""}${r.cook?`<span>אפייה <b>${esc(r.cook)}</b></span>`:""}</div>
@@ -2024,7 +2024,9 @@ function chefError(e){
   if(c === "not_granted" || c === "sampling_disabled" || c === "not_declared" || c === "capability_disabled" || c === "capability_removed"){
     sampleOff = true; return "השף לא זמין כאן, כי לא אושר לו להשתמש ב-Claude. המתכונים מהספר עדיין מוצגים.";
   }
-  if(c === "rate_limited") return "יותר מדי בקשות ברגע. נסי שוב עוד כמה דקות.";
+  if(c === "rate_limited") return "השף עמוס כרגע או שנגמרה המכסה היומית. נסי שוב בעוד כמה דקות, ואם זה לא עוזר, מחר.";
+  if(c === "network") return "אין חיבור לשף כרגע. בדקי את האינטרנט ונסי שוב.";
+  if(c === "too_large") return "התמונות גדולות מדי. נסי פחות תמונות.";
   if(c === "session_expired") return "צריך להתחבר שוב ל-Claude.";
   if(c === "refused") return "לא הצלחתי לענות על זה. נסי לנסח אחרת.";
   if(c === "cancelled") return "עצרתי.";
@@ -2218,7 +2220,7 @@ function addPage(){
     <button class="back" data-act="home">→ לכל המתכונים</button>
     <header class="rh"><h2>הוספת מתכון</h2></header>
     ${ai ? `<section class="addbox"><h3>מצילום מסך או טקסט</h3>
-      <p class="muted">צלמי את המתכון מאינסטגרם, מטיקטוק או מספר, או הדביקי את הטקסט. Claude יסדר אותו בעברית, עם מידות מטריות.</p>
+      <p class="muted">צלמי את המתכון מאינסטגרם, מטיקטוק או מספר, או הדביקי את הטקסט. השף יסדר אותו בעברית, עם מידות מטריות.</p>
       ${imgLimits ? `<label class="file"><input type="file" class="f-img" accept="${esc(imgLimits.mediaTypes.join(","))}" multiple>📷 בחירת צילומי מסך</label><div class="thumbs"></div>` : ""}
       <textarea class="f-paste" rows="4" placeholder="אפשר להדביק כאן את טקסט המתכון" aria-label="טקסט המתכון"></textarea>
       <input class="f-alink" type="url" inputmode="url" placeholder="קישור לסרטון (לא חובה)" aria-label="קישור לסרטון">
@@ -2265,7 +2267,7 @@ async function addWithAI(btn){
   const text = view.querySelector(".f-paste").value.trim(), link = view.querySelector(".f-alink").value.trim();
   const msg = view.querySelector(".a-msg");
   if(!addFiles.length && !text){ msg.textContent = "צריך לבחור צילום מסך או להדביק טקסט."; return; }
-  btn.disabled = true; msg.textContent = "Claude קורא את המתכון… זה יכול לקחת עד דקה.";
+  btn.disabled = true; msg.textContent = "השף קורא את המתכון… זה יכול לקחת עד דקה.";
   addBusy = new AbortController();
   try{
     const r = await importRecipe(addFiles, text, link, addBusy.signal);
@@ -2296,6 +2298,51 @@ function deleteLocal(r, btn){
 }
 loadLocal();
 
+/* ---------- השף דרך השרת ב-Cloudflare (לאתר ב-GitHub) ---------- */
+const CHEF_API = "https://recipes-chef.yuvalmitrani00.workers.dev/";   // כתובת השרת של השף, למשל https://recipes-chef.NAME.workers.dev
+async function shrinkImage(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url; });
+    const k = Math.min(1, 1200 / img.naturalWidth, 3000 / img.naturalHeight);
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return { mime: "image/jpeg", data: c.toDataURL("image/jpeg", 0.82).split(",")[1] };
+  }catch(e){ throw { code: "image_rejected" }; }
+  finally{ URL.revokeObjectURL(url); }
+}
+function remoteSample(api){
+  async function call(input, opts = {}){
+    const messages = typeof input === "string" ? [{ role: "user", content: input }] : input;
+    const images = await Promise.all((opts.images || []).map(shrinkImage));
+    let res;
+    try{ res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, images }), signal: opts.signal }); }
+    catch(e){ throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
+    const j = await res.json().catch(() => ({}));
+    if(!res.ok) throw { code: j.code || "upstream_error" };
+    return j.text || "";
+  }
+  const f = async (input, opts) => ({ text: await call(input, opts), truncated: false });
+  f.json = async (input, opts) => {
+    const t = await call(input, opts), m = t.match(/[\[{][\s\S]*[\]}]/);
+    try{ return JSON.parse(m ? m[0] : t); }catch(e){ throw { code: "upstream_error" }; }
+  };
+  f.limits = async () => ({ images: { maxCount: 4, mediaTypes: ["image/*"] } });
+  return f;
+}
+if(CHEF_API && !(window.claude && typeof window.claude.use === "function")){
+  sampleFn = remoteSample(CHEF_API);
+  imgLimits = { maxCount: 4, mediaTypes: ["image/*"] };
+}
+function saveLocal(r){
+  const id = "my-" + Date.now().toString(36);
+  const body = cleanRecipe(r, id); body.fromLocal = true;
+  const list = store.get("myRecipes", []); list.push({ ...body }); store.set("myRecipes", list);
+  const i = tempRecipes.indexOf(r); if(i >= 0) tempRecipes.splice(i, 1);
+  RECIPES.push(body); location.hash = id;
+}
+
 /* ---------- לחיצות ---------- */
 document.addEventListener("click", e => {
   const b = e.target.closest("button"); if(!b) return;
@@ -2313,7 +2360,7 @@ document.addEventListener("click", e => {
     case "home": location.hash = ""; break;
     case "chef-stop": if(chefBusy) chefBusy.abort(); break;
     case "chef-more": askChef("", [], true); break;
-    case "chef-save": saveRecipe(view.current, b); break;
+    case "chef-save": dbApi ? saveRecipe(view.current, b) : saveLocal(view.current); break;
     case "add-ai": addWithAI(b); break;
     case "add-manual": addManual(b); break;
     case "local-del": deleteLocal(view.current, b); break;
