@@ -151,6 +151,12 @@ body.cooking{overflow:hidden}
 .ck-nav .ck-next{background:var(--olive);color:var(--bg);border-color:var(--olive)}
 .ck-nav button:disabled{opacity:.35;cursor:default}
 .ck-wake{color:var(--muted);font-size:.85rem;text-align:center;margin:12px 0 0}
+/* help */
+.hsec{margin-top:26px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.hsec h3{font-size:1.4rem;margin-bottom:6px}
+.hsec ul{margin:0;padding-inline-start:20px}
+.hsec li{margin:6px 0}
+.hsec b{color:var(--olive)}
 /* add */
 .addbox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:20px}
 .addbox h3{margin-bottom:8px}
@@ -1879,6 +1885,7 @@ function home(){
     <div class="acts top">
       <a class="act act-main" href="#chef">👩‍🍳 מה נבשל? שאלי את השף</a>
       <a class="act" href="#add">➕ הוספת מתכון</a>
+      <a class="act" href="#help">❓ איך זה עובד</a>
       <button class="act" data-act="random">🎲 מה נבשל היום?</button>
       <a class="act" href="#shopping">🛒 רשימת קניות${cart.length?` (${cart.length})`:""}</a>
     </div>
@@ -2098,12 +2105,12 @@ async function askChef(text, files = [], more = false){
     if(!sampleFn) addBubble("chef", `<p class="muted">רעיונות חדשים ומתכונים מלאים מהשף זמינים כשפותחים את הספר מהקישור של Claude.</p>`);
     return;
   }
-  const i = addBubble("chef", `<p class="muted">השף חושב…</p><button class="x stop" data-act="chef-stop">עצירה</button>`);
+  const i = addBubble("chef", `<p class="muted">השף חושב… זה לוקח בדרך כלל כמה שניות.</p><button class="x stop" data-act="chef-stop">עצירה</button>`);
   chefBusy = new AbortController(); renderChat();
   chatTurns.push({ role:"user", content: more ? "תני עוד 8 רעיונות, שונים לגמרי מכל מה שכבר הצעת." : text });
   try{
     const turns = [{ role:"user", content: CHEF_RULES() }, ...chatTurns.slice(-8)];
-    const ans = await sampleFn.json(turns, { cache:false, signal: chefBusy.signal });
+    const ans = await sampleFn.json(turns, { cache:false, modelTier:"quick", signal: chefBusy.signal });
     const ideas = Array.isArray(ans && ans.ideas) ? ans.ideas.slice(0,10) : [];
     chatTurns.push({ role:"assistant", content: JSON.stringify(ans) });
     setBubble(i, `${ans && ans.reply ? `<p>${esc(ans.reply)}</p>` : ""}<div class="ideas">${ideas.map(d => {
@@ -2317,7 +2324,7 @@ function remoteSample(api){
     const messages = typeof input === "string" ? [{ role: "user", content: input }] : input;
     const images = await Promise.all((opts.images || []).map(shrinkImage));
     let res;
-    try{ res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, images }), signal: opts.signal }); }
+    try{ res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, images, fast: opts.modelTier === "quick" }), signal: opts.signal }); }
     catch(e){ throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
     const j = await res.json().catch(() => ({}));
     if(!res.ok) throw { code: j.code || "upstream_error" };
@@ -2341,6 +2348,50 @@ function saveLocal(r){
   const list = store.get("myRecipes", []); list.push({ ...body }); store.set("myRecipes", list);
   const i = tempRecipes.indexOf(r); if(i >= 0) tempRecipes.splice(i, 1);
   RECIPES.push(body); location.hash = id;
+}
+
+
+/* ---------- איך זה עובד ---------- */
+function help(){
+  const ai = !!sampleFn && !sampleOff;
+  const sec = (icon, title, items) => `<section class="hsec"><h3><span aria-hidden="true">${icon}</span> ${title}</h3><ul>${items.map(i=>`<li>${i}</li>`).join("")}</ul></section>`;
+  view.innerHTML = `
+    <button class="back" data-act="home">→ לכל המתכונים</button>
+    <header class="rh"><h2>איך זה עובד?</h2>
+      <p class="lead">ספר מתכונים שאספתי מהרשת, עם כמה כלים קטנים שעוזרים במטבח. הנה כל מה שאפשר לעשות בו.</p></header>
+    ${sec("🔎","למצוא מתכון",[
+      "<b>חיפוש:</b> כותבים שם של מנה או מרכיב, למשל ״עוף״ או ״ריקוטה״.",
+      "<b>קטגוריות ותגיות:</b> לוחצים על ״קינוחים״, ״עיקריות״ או על תגית כמו ״צמחוני״ כדי לסנן.",
+      "<b>♡ מועדפים:</b> לוחצים על הלב ליד מתכון, והוא נשמר תחת ״♥ מועדפים״.",
+      "<b>🎲 מה נבשל היום?</b> מגריל מתכון. אם בחרתם קטגוריה, ההגרלה רק ממנה."])}
+    ${sec("📖","בתוך מתכון",[
+      "<b>מרכיבים:</b> אפשר לסמן ✓ כל מרכיב שכבר הוספתם.",
+      "<b>⏱ טיימרים:</b> בכל שלב שכתוב בו זמן יש כפתור. לוחצים, והספירה מופיעה בתחתית המסך עם צלצול בסוף.",
+      "<b>👩‍🍳 מצב בישול:</b> השלבים אחד אחרי השני באותיות גדולות, והמסך לא נכבה.",
+      "<b>🛒 רשימת קניות:</b> מוסיפים מתכונים לרשימה, מסמנים מה כבר יש בבית, ושולחים את השאר בוואטסאפ.",
+      "<b>↗ שיתוף:</b> שולחים את המתכון המלא לחברים.",
+      "<b>ההערות שלי:</b> מקום לכתוב מה שיניתם או איך יצא.",
+      "<b>ערכים תזונתיים:</b> קלוריות, חלבון, פחמימות ושומן. ברוב המתכונים זו הערכה לפי המרכיבים."])}
+    ${sec("👩‍🍳","השף",[
+      "כותבים מה יש במקרר או מה בא לכם, למשל ״יש לי חזה עוף״ או ״משהו מתוק בלי תנור״.",
+      "השף מראה קודם מתכונים מהספר שמתאימים, ואחר כך רעיונות חדשים. ״➕ עוד רעיונות״ מביא עוד.",
+      "בכל רעיון אפשר ללחוץ ״✨ למתכון המלא״, ולשמור אותו בספר.",
+      "<b>📷 מתכון מצילום מסך:</b> ראיתם מתכון באינסטגרם או בטיקטוק? מצלמים מסך, מצרפים עם הכפתור 📷 (אפשר להוסיף את הקישור לסרטון), והשף מסדר אותו בעברית.",
+      "השף לא יכול לפתוח קישורים בעצמו, לכן צריך צילום מסך של המתכון."])}
+    ${sec("➕","הוספת מתכון",[
+      ai ? "מצילום מסך או מטקסט שמדביקים, או ידנית: שם, מרכיבים ושלבים, כל אחד בשורה." : "ידנית: שם, מרכיבים ושלבים, כל אחד בשורה.",
+      "שורה שנגמרת בנקודתיים, כמו ״לציפוי:״, הופכת לכותרת."])}
+    ${sec("📱","לשמור כאפליקציה בטלפון",[
+      "<b>באייפון:</b> פותחים את האתר ב-Safari, לוחצים על כפתור השיתוף ⬆️ ובוחרים ״הוסף למסך הבית״.",
+      "<b>באנדרואיד:</b> פותחים ב-Chrome, לוחצים על ⋮ ובוחרים ״הוספה למסך הבית״.",
+      "הקיצור מתעדכן לבד בכל פעם שמתווספים מתכונים."])}
+    ${sec("💡","כדאי לדעת",[
+      "מועדפים, הערות, רשימת קניות ומתכונים ששמרתם נשמרים <b>רק בטלפון שלכם</b>. אחרים לא רואים אותם.",
+      "את המתכונים שהשף מציע כותבת בינה מלאכותית. כדאי להעיף מבט לפני שמבשלים.",
+      "הטיימר מצלצל רק כשהאתר פתוח. הכי נוח להפעיל אותו מתוך מצב הבישול.",
+      "אם השף עמוס, הוא יבקש לנסות שוב מאוחר יותר."])}
+    <div class="acts"><a class="act act-main" href="#chef">👩‍🍳 לנסות את השף</a><button class="act" data-act="home">📖 לכל המתכונים</button></div>`;
+  window.scrollTo(0,0);
 }
 
 /* ---------- לחיצות ---------- */
@@ -2387,6 +2438,7 @@ function route(){
   if(id === "shopping") return shopping();
   if(id === "chef") return chef();
   if(id === "add") return addPage();
+  if(id === "help") return help();
   const r = byId(id);
   r ? recipe(r) : home();
 }
