@@ -168,6 +168,7 @@ body.cooking{overflow:hidden}
 .file:focus-within{outline:3px solid var(--saffron)}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .thumbs img{width:72px;height:96px;object-fit:cover;border-radius:8px}
+.addbox.admin{border-color:var(--saffron)}
 /* chef */
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
 .chips button{border:1.5px dashed var(--olive);background:transparent;color:var(--olive);border-radius:999px;padding:4px 14px;cursor:pointer;font-size:.95rem}
@@ -2168,7 +2169,7 @@ function recipe(r){
   const inCart = cart.includes(r.id);
   view.innerHTML = `
     <button class="back" data-act="home">→ לכל המתכונים</button>
-    ${r.temp?`<div class="banner"><span>${esc(r.tempMsg||"")}</span><button class="act act-main" data-act="chef-save">📖 שמירה לספר</button>${dbApi?"":`<span class="hint">יישמר בספר בטלפון הזה.</span>`}<a class="act" href="#${r.backTo||"chef"}">→ חזרה</a></div>`:""}
+    ${r.temp?`<div class="banner"><span>${esc(r.tempMsg||"")}</span><button class="act act-main" data-act="chef-save">📖 שמירה לספר</button>${dbApi?"":`<span class="hint">${isAdmin() ? "יישמר בספר ויופיע לכולם." : "יישמר בספר בטלפון הזה."}</span>`}<a class="act" href="#${r.backTo||"chef"}">→ חזרה</a></div>`:""}
     ${r.image?`<figure class="hero"><img src="${r.image}" alt="${esc(r.title)}">${r.imageCredit?`<figcaption>צילום מתוך הסרטון של ${esc(r.imageCredit)}</figcaption>`:""}</figure>`:""}
     <header class="rh">${r.category?`<span class="cat">${esc(r.category)}</span>`:""}<h2>${esc(r.title)}</h2>
       <div class="facts">${r.yield?`<span><b>${esc(r.yield)}</b></span>`:n?`<span><b>${n}</b> מנות</span>`:""}${r.prep?`<span>הכנה <b>${esc(r.prep)}</b></span>`:""}${r.cook?`<span>אפייה <b>${esc(r.cook)}</b></span>`:""}</div>
@@ -2181,6 +2182,7 @@ function recipe(r){
         <button class="act" data-act="share">↗ שיתוף</button>
         ${r.fromChef && dbApi ? `<button class="act" data-act="chef-del">🗑 מחיקה מהספר</button>` : ""}
         ${r.fromLocal ? `<button class="act" data-act="local-del">🗑 מחיקה מהספר</button>` : ""}
+        ${r.fromShared && isAdmin() ? `<button class="act" data-act="shared-del">🗑 מחיקה מהספר</button>` : ""}
       </div></header>
     <section><h3>מרכיבים</h3><ul class="ing">${r.ingredients.map((g,i)=>g.h?`<li class="ih">${esc(g.h)}</li>`:`
       <li><label><input type="checkbox" data-i="${i}" ${checked.includes(i)?"checked":""}>
@@ -2451,6 +2453,7 @@ function addPage(){
   view.innerHTML = `
     <button class="back" data-act="home">→ לכל המתכונים</button>
     <header class="rh"><h2>הוספת מתכון</h2></header>
+    ${adminBox()}
     ${ai ? `<section class="addbox"><h3>מצילום מסך או טקסט</h3>
       <p class="muted">צלמי את המתכון מאינסטגרם, מטיקטוק או מספר, או הדביקי את הטקסט. השף יסדר אותו בעברית, עם מידות מטריות.</p>
       ${imgLimits ? `<label class="file"><input type="file" class="f-img" accept="${esc(imgLimits.mediaTypes.join(","))}" multiple>📷 בחירת צילומי מסך</label><div class="thumbs"></div>` : ""}
@@ -2516,6 +2519,7 @@ async function addManual(btn){
     steps: view.querySelector(".f-steps").value.split("\n").map(x => x.replace(/^\s*\d+[.)]\s*/, "").trim()).filter(Boolean) };
   if(!r.title){ msg.textContent = "חסר שם למתכון."; return; }
   if(!r.ingredients.length && !r.steps.length){ msg.textContent = "צריך לפחות מרכיבים או שלבים."; return; }
+  if(isAdmin()) return saveShared(r, btn);
   if(dbApi) return saveRecipe(r, btn);
   const id = "my-" + Date.now().toString(36);
   const list = store.get("myRecipes", []); list.push({ ...r, id }); store.set("myRecipes", list);
@@ -2611,13 +2615,104 @@ function help(){
       "<b>באנדרואיד:</b> פותחים ב-Chrome, לוחצים על ⋮ ובוחרים ״הוספה למסך הבית״.",
       "הקיצור מתעדכן לבד בכל פעם שמתווספים מתכונים."])}
     ${sec("💡","כדאי לדעת",[
-      "מועדפים, הערות, רשימת קניות ומתכונים ששמרתם נשמרים <b>רק בטלפון שלכם</b>. אחרים לא רואים אותם.",
+      "מועדפים, הערות ורשימת קניות נשמרים <b>רק בטלפון שלכם</b>. גם מתכונים שאתם מוסיפים או שומרים מהשף נשמרים רק אצלכם.",
       "את המתכונים שהשף מציע כותבת בינה מלאכותית. כדאי להעיף מבט לפני שמבשלים.",
       "הטיימר מצלצל רק כשהאתר פתוח. הכי נוח להפעיל אותו מתוך מצב הבישול.",
       "אם השף עמוס, הוא יבקש לנסות שוב מאוחר יותר."])}
     <div class="acts"><a class="act act-main" href="#chef">👩‍🍳 לנסות את השף</a><button class="act" data-act="home">📖 לכל המתכונים</button></div>`;
   window.scrollTo(0,0);
 }
+
+
+/* ---------- ספר משותף: מתכונים שנוספו באתר ומופיעים לכולם ---------- */
+let adminPw = store.get("adminPw", "");
+const isAdmin = () => !!(CHEF_API && adminPw);
+const sharedUrl = path => CHEF_API + "recipes" + (path ? "/" + path : "");
+async function sharedPost(path, body){
+  let res;
+  try{ res = await fetch(sharedUrl(path), { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ password: adminPw, ...body }) }); }
+  catch(e){ throw { code:"network" }; }
+  const j = await res.json().catch(() => ({}));
+  if(!res.ok){
+    if(j.code === "wrong_password"){ adminPw = ""; store.set("adminPw", ""); }
+    throw { code: j.code || "upstream_error" };
+  }
+  return j;
+}
+const sharedError = e => e && e.code === "wrong_password" ? "הסיסמה לא נכונה. היכנסי שוב למצב עריכה בעמוד ״הוספת מתכון״." :
+  e && e.code === "no_storage" ? "האחסון בשרת עוד לא מחובר." : e && e.code === "network" ? "אין חיבור לשרת. נסי שוב." : "השמירה לא הצליחה. נסי שוב.";
+async function loadShared(){
+  if(!CHEF_API) return;
+  try{
+    const res = await fetch(sharedUrl("")); if(!res.ok) return;
+    const arr = await res.json(); if(!Array.isArray(arr)) return;
+    for(let i = RECIPES.length - 1; i >= 0; i--) if(RECIPES[i].fromShared) RECIPES.splice(i, 1);
+    arr.forEach(x => {
+      if(!x || !x.title || !x.id) return;
+      const c = cleanRecipe(x, String(x.id)); c.fromShared = true;
+      if(!RECIPES.some(y => y.id === c.id)) RECIPES.push(c);
+    });
+    const h = location.hash.slice(1), typing = document.activeElement && /TEXTAREA|INPUT/.test(document.activeElement.tagName);
+    if(!cook && !typing && (h === "" || RECIPES.some(r => r.id === h && r.fromShared))) route();
+  }catch(e){}
+}
+async function saveShared(r, btn, opts = {}){
+  if(btn){ btn.disabled = true; btn.textContent = "שומר…"; }
+  const id = "s-" + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  const body = cleanRecipe(r, id);
+  if(!body.nutri) delete body.nutri; if(!body.video) delete body.video;
+  try{
+    await sharedPost("save", { recipe: body });
+    const i = tempRecipes.indexOf(r); if(i >= 0) tempRecipes.splice(i, 1);
+    const c = cleanRecipe(body, id); c.fromShared = true; RECIPES.push(c);
+    if(!opts.stay) location.hash = id;
+    return true;
+  }catch(e){
+    if(btn){ btn.disabled = false; btn.textContent = "📖 שמירה לספר"; }
+    const box = btn && btn.parentElement;
+    if(box){ const m = box.querySelector(".s-msg") || box.appendChild(document.createElement("p")); m.className = "muted s-msg"; m.textContent = sharedError(e); }
+    return false;
+  }
+}
+async function deleteShared(r, btn){
+  if(!btn.dataset.sure){ btn.dataset.sure = "1"; btn.textContent = "בטוח? לחצי שוב"; return; }
+  btn.disabled = true; btn.textContent = "מוחק…";
+  try{ await sharedPost("delete", { id: r.id }); const i = RECIPES.indexOf(r); if(i >= 0) RECIPES.splice(i, 1); location.hash = ""; }
+  catch(e){ btn.disabled = false; btn.textContent = sharedError(e); }
+}
+function adminBox(){
+  if(!CHEF_API) return "";
+  const local = store.get("myRecipes", []);
+  if(isAdmin()) return `<section class="addbox admin"><h3>🔓 את במצב עריכה</h3>
+    <p class="muted">מתכונים שתוסיפי או תשמרי מהשף ייכנסו לספר ויופיעו לכל מי שנכנס לאתר.</p>
+    <div class="acts">${local.length ? `<button class="act act-main" data-act="migrate-local">העברת ${local.length} מתכונים מהטלפון לספר</button>` : ""}
+    <button class="act" data-act="admin-logout">יציאה ממצב עריכה</button></div><p class="muted a-res"></p></section>`;
+  return `<section class="addbox admin"><h3>🔒 מצב עריכה</h3>
+    <p class="muted">רוצה שהמתכונים שתוסיפי יופיעו לכולם? היכנסי עם הסיסמה. בלי סיסמה, מתכון שמוסיפים נשמר רק בטלפון הזה.</p>
+    <label>סיסמה<input type="password" class="f-pw" autocomplete="current-password"></label>
+    <div class="acts"><button class="act act-main" data-act="admin-login">כניסה</button></div><p class="muted a-res"></p></section>`;
+}
+async function adminLogin(btn){
+  const pw = view.querySelector(".f-pw").value, res = view.querySelector(".a-res");
+  if(!pw){ res.textContent = "צריך להקליד סיסמה."; return; }
+  btn.disabled = true; res.textContent = "בודקת…";
+  adminPw = pw;
+  try{ await sharedPost("login", {}); store.set("adminPw", pw); addPage(); }
+  catch(e){ adminPw = ""; btn.disabled = false; res.textContent = e.code === "wrong_password" ? "הסיסמה לא נכונה." : sharedError(e); }
+}
+async function migrateLocal(btn){
+  const list = store.get("myRecipes", []), res = view.querySelector(".a-res");
+  btn.disabled = true; let done = 0;
+  for(const x of list){
+    res.textContent = `מעבירה ${done + 1} מתוך ${list.length}…`;
+    if(!(await saveShared(x, null, { stay: true }))){ res.textContent = "חלק מהמתכונים לא הועברו. נסי שוב."; break; }
+    store.set("myRecipes", store.get("myRecipes", []).filter(y => y.id !== x.id));
+    const i = RECIPES.findIndex(y => y.id === x.id && y.fromLocal); if(i >= 0) RECIPES.splice(i, 1);
+    done++;
+  }
+  if(done === list.length) addPage();
+}
+loadShared();
 
 /* ---------- לחיצות ---------- */
 document.addEventListener("click", e => {
@@ -2636,7 +2731,11 @@ document.addEventListener("click", e => {
     case "home": location.hash = ""; break;
     case "chef-stop": if(chefBusy) chefBusy.abort(); break;
     case "chef-more": askChef("", [], true); break;
-    case "chef-save": dbApi ? saveRecipe(view.current, b) : saveLocal(view.current); break;
+    case "chef-save": isAdmin() ? saveShared(view.current, b) : dbApi ? saveRecipe(view.current, b) : saveLocal(view.current); break;
+    case "shared-del": deleteShared(view.current, b); break;
+    case "admin-login": adminLogin(b); break;
+    case "admin-logout": adminPw = ""; store.set("adminPw", ""); addPage(); break;
+    case "migrate-local": migrateLocal(b); break;
     case "add-ai": addWithAI(b); break;
     case "add-manual": addManual(b); break;
     case "local-del": deleteLocal(view.current, b); break;
