@@ -168,6 +168,8 @@ body.cooking{overflow:hidden}
 .file:focus-within{outline:3px solid var(--saffron)}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .thumbs img{width:72px;height:96px;object-fit:cover;border-radius:8px}
+.vthumb{width:72px;height:96px;border-radius:8px;background:var(--card,#f3ece2);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+.chat-files .vthumb,.bub .vthumb{width:56px;height:76px;font-size:1.4rem}
 .addbox.admin{border-color:var(--saffron)}
 /* chef */
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
@@ -2287,8 +2289,8 @@ function chef(){
     </form>`;
   const f = view.querySelector(".ask"), ta = f.querySelector("textarea"), fi = f.querySelector(".attach input");
   let picked = [];
-  const showPicked = () => { f.querySelector(".chat-files").innerHTML = picked.map((x,i) => `<span><img src="${URL.createObjectURL(x)}" alt=""><button type="button" class="x" data-unpick="${i}" aria-label="הסרה">✕</button></span>`).join(""); };
-  if(fi) fi.onchange = () => { picked = [...picked, ...fi.files].slice(0, imgLimits.maxCount); fi.value = ""; showPicked(); };
+  const showPicked = () => { f.querySelector(".chat-files").innerHTML = picked.map((x,i) => `<span>${thumb(x)}<button type="button" class="x" data-unpick="${i}" aria-label="הסרה">✕</button></span>`).join(""); };
+  if(fi) fi.onchange = () => { picked = pickFiles(picked, fi.files); fi.value = ""; showPicked(); };
   f.addEventListener("click", e => { const u = e.target.closest("[data-unpick]"); if(u){ picked.splice(+u.dataset.unpick, 1); showPicked(); } });
   f.onsubmit = e => { e.preventDefault(); const t = ta.value.trim(); if(t || picked.length){ const fs = picked; picked = []; showPicked(); ta.value = ""; askChef(t, fs); } };
   ta.addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); f.requestSubmit(); } });
@@ -2303,12 +2305,12 @@ function renderChat(){
 }
 
 async function chefImport(text, files, url, rest){
-  addBubble("me", `${files.length ? `<div class="imgs">${files.map(f => `<img src="${URL.createObjectURL(f)}" alt="">`).join("")}</div>` : ""}${esc(text)}`);
+  addBubble("me", `${files.length ? `<div class="imgs">${files.map(thumb).join("")}</div>` : ""}${esc(text)}`);
   if(!sampleFn || sampleOff){ addBubble("chef", `<p class="muted">הכנסת מתכון מצילום מסך זמינה בקישור של Claude.</p>`); return; }
   const i = addBubble("chef", `<p class="muted">קורא את המתכון… זה יכול לקחת עד דקה.</p><button class="x stop" data-act="chef-stop">עצירה</button>`);
   chefBusy = new AbortController(); renderChat();
   try{
-    const r = await importRecipe(files, rest, url, chefBusy.signal);
+    const r = await importRecipe(files, rest, url, chefBusy.signal, t => setBubble(i, `<p class="muted">${esc(t)}</p><button class="x stop" data-act="chef-stop">עצירה</button>`));
     r.backTo = "chef";
     setBubble(i, `<p>המתכון מוכן: <b>${esc(r.title)}</b></p>${r.tempMsg ? `<p class="muted">${esc(r.tempMsg)}</p>` : ""}<div class="acts"><a class="act act-main" href="#${r.id}">📖 לצפייה ושמירה בספר</a></div>`);
   }catch(e){ setBubble(i, `<p class="muted">${esc(importError(e))}</p>`); }
@@ -2447,6 +2449,10 @@ function parseIngredients(t){
     const m = l.match(QTY); return m ? { q: m[1].trim(), t: m[2].trim() } : { q: "", t: l };
   });
 }
+const isVideo = f => /^video\//.test(f.type || "");
+const thumb = f => isVideo(f) ? `<span class="vthumb" title="סרטון">🎬</span>` : `<img src="${URL.createObjectURL(f)}" alt="">`;
+// עד 4 קבצים, ומהם לכל היותר סרטון אחד
+const pickFiles = (old, add) => { let v = false; return [...old, ...add].filter(f => !isVideo(f) || (!v && (v = true))).slice(0, imgLimits.maxCount); };
 function addPage(){
   const ai = !!sampleFn && !sampleOff;
   addFiles = [];
@@ -2456,7 +2462,7 @@ function addPage(){
     ${adminBox()}
     ${ai ? `<section class="addbox"><h3>מצילום מסך או טקסט</h3>
       <p class="muted">${sampleFn && sampleFn.readsLinks ? "הדביקי קישור לסרטון באינסטגרם, בטיקטוק או ביוטיוב, או לאתר מתכונים. אפשר גם צילום מסך או טקסט. השף יסדר את המתכון בעברית, עם מידות מטריות." : "צלמי את המתכון מאינסטגרם, מטיקטוק או מספר, או הדביקי את הטקסט. השף יסדר אותו בעברית, עם מידות מטריות."}</p>
-      ${imgLimits ? `<label class="file"><input type="file" class="f-img" accept="${esc(imgLimits.mediaTypes.join(","))}" multiple>📷 בחירת צילומי מסך</label><div class="thumbs"></div>` : ""}
+      ${imgLimits ? `<label class="file"><input type="file" class="f-img" accept="${esc(imgLimits.mediaTypes.join(","))}" multiple>${sampleFn.readsVideo ? "📷 צילומי מסך או סרטון" : "📷 בחירת צילומי מסך"}</label><div class="thumbs"></div>` : ""}
       <textarea class="f-paste" rows="4" placeholder="אפשר להדביק כאן את טקסט המתכון" aria-label="טקסט המתכון"></textarea>
       <input class="f-alink" type="url" inputmode="url" placeholder="${sampleFn && sampleFn.readsLinks ? "קישור לסרטון או לאתר מתכונים" : "קישור לסרטון (לא חובה)"}" aria-label="קישור לסרטון">
       <div class="acts"><button class="act act-main" data-act="add-ai">✨ סידור המתכון</button></div>
@@ -2475,28 +2481,39 @@ function addPage(){
     </section>`;
   const fi = view.querySelector(".f-img");
   if(fi) fi.onchange = () => {
-    addFiles = [...fi.files].slice(0, imgLimits.maxCount);
-    view.querySelector(".thumbs").innerHTML = addFiles.map(f => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
+    addFiles = pickFiles([], fi.files);
+    view.querySelector(".thumbs").innerHTML = addFiles.map(thumb).join("");
   };
   window.scrollTo(0,0);
 }
-async function importRecipe(files, text, link, signal){
+async function importRecipe(files, text, link, signal, onStatus){
+  const vfile = files.find(isVideo);
+  files = files.filter(f => !isVideo(f));
+  let video = null;
+  if(vfile){
+    if(!sampleFn.uploadVideo) throw { code: "video_failed" };
+    onStatus && onStatus("מעלה את הסרטון… זה יכול לקחת כמה דקות.");
+    video = await sampleFn.uploadVideo(vfile, signal, () => onStatus && onStatus("השף צופה בסרטון ומקשיב לו…"));
+  }
   const useLink = !!(link && sampleFn.readsLinks);
-  const prompt = `לפניך מתכון${files.length ? " בצילומי המסך המצורפים" : ""}${text ? " ובטקסט שלמטה" : ""}${useLink ? (files.length || text ? ", וגם" : "") + " במה שנקרא מהקישור (תיאור הסרטון, הסרטון עצמו או עמוד המתכון)" : ""}. אם אין שם מספיק מידע למתכון, החזירו ingredients ו-steps ריקים. חלצו אותו כמתכון מסודר בעברית: תרגמו אם הוא בשפה אחרת, המירו מידות למטריות וטמפרטורות לצלזיוס, ואל תשנו את המתכון עצמו ואל תמציאו מרכיבים או שלבים. השמיטו קודי הנחה, פרסומות ופניות לעוקבים. אם חסר חלק (למשל ההמשך נמצא בתגובות), החזירו מה שיש וכתבו בשדה missing מה חסר.
+  const prompt = `לפניך מתכון${video ? " בסרטון המצורף: צפו בו והקשיבו לכל מה שנאמר בו, כולל כמויות" : ""}${files.length ? (video ? "," : "") + " בצילומי המסך המצורפים" : ""}${text ? " ובטקסט שלמטה" : ""}${useLink ? (files.length || text ? ", וגם" : "") + " במה שנקרא מהקישור (תיאור הסרטון, הסרטון עצמו או עמוד המתכון)" : ""}. אם אין שם מספיק מידע למתכון, החזירו ingredients ו-steps ריקים. חלצו אותו כמתכון מסודר בעברית: תרגמו אם הוא בשפה אחרת, המירו מידות למטריות וטמפרטורות לצלזיוס, ואל תשנו את המתכון עצמו ואל תמציאו מרכיבים או שלבים. השמיטו קודי הנחה, פרסומות ופניות לעוקבים. אם חסר חלק (למשל ההמשך נמצא בתגובות), החזירו מה שיש וכתבו בשדה missing מה חסר.
 source: שם היוצר או היוצרת אם מופיע (למשל ‎@name באינסטגרם), אחרת מחרוזת ריקה.
 החזירו רק JSON בצורה הזו:
 {"title":"...","subtitle":"תיאור קצר","category":"אחת מ: ${CATS.join(", ")}","tags":["עד 3 תגיות"],"time":"","ingredients":[{"h":"כותרת קבוצה, לא חובה"},{"q":"200 גרם","t":"שם המרכיב"}],"steps":["..."],"note":"","source":"","missing":"","nutrition":{"servings":4,"per":"מנה","total":[קלוריות, חלבון בגרם, פחמימות בגרם, שומן בגרם]}}
 ב-nutrition: אם במקור מופיעים ערכים תזונתיים השתמשו בהם, אחרת הערכה לכל המתכון יחד (total) לפי המרכיבים, ומספר המנות או היחידות שהוא מתחלק אליהן (per למשל "מנה" או "לעוגייה").
 ${text ? "\nטקסט המתכון:\n" + text.slice(0, 12000) : ""}`;
-  const x = await sampleFn.json(prompt, { cache:false, signal, ...(files.length ? { images: files } : {}), ...(useLink ? { link } : {}) });
+  const x = await sampleFn.json(prompt, { cache:false, signal, ...(files.length ? { images: files } : {}), ...(useLink ? { link } : {}), ...(video ? { video } : {}) });
   const r = cleanRecipe({ ...(x||{}), video: link }, "tmp-" + Date.now().toString(36));
-  if(!r.ingredients.length && !r.steps.length) throw { code: files.length || text.length > 40 ? "empty" : sampleFn.lastLink === "none" ? "link_closed" : "link_empty" };
+  if(!r.ingredients.length && !r.steps.length) throw { code: video ? "video_empty" : files.length || text.length > 40 ? "empty" : sampleFn.lastLink === "none" ? "link_closed" : "link_empty" };
   r.temp = true;
   r.tempMsg = "בדקי שהמתכון נקרא נכון לפני השמירה." + (x && x.missing ? " חסר: " + String(x.missing) : "");
   tempRecipes.push(r);
   return r;
 }
 const importError = e => e && e.code === "empty" ? "לא מצאתי מתכון בתמונות. נסי צילום ברור יותר." :
+  e && e.code === "video_too_big" ? "הסרטון גדול מדי (עד 95MB). נסי סרטון קצר יותר." :
+  e && e.code === "video_failed" ? "לא הצלחתי להעלות את הסרטון. נסי שוב, או שלחי צילומי מסך." :
+  e && e.code === "video_empty" ? "צפיתי בסרטון אבל לא מצאתי בו מתכון. נסי סרטון אחר או צילומי מסך." :
   e && e.code === "link_closed" ? "לא הצלחתי לפתוח את הקישור. לפעמים אינסטגרם או טיקטוק חוסמים את זה. צלמי מסך של התיאור של הסרטון (המקום שבו כתוב המתכון) ושלחי אותו יחד עם הקישור." :
   e && e.code === "link_empty" ? "פתחתי את הקישור, אבל המתכון לא כתוב בתיאור של הסרטון. כנראה הוא נאמר רק בסרטון. צלמי מסך של הרגעים בסרטון שבהם רואים את המרכיבים, או כתבי אותם, ושלחי עם הקישור." :
   e && e.code === "image_rejected" ? "אחת התמונות לא התקבלה. נסי תמונה אחרת." : chefError(e);
@@ -2508,7 +2525,7 @@ async function addWithAI(btn){
   btn.disabled = true; msg.textContent = "השף קורא את המתכון… זה יכול לקחת עד דקה.";
   addBusy = new AbortController();
   try{
-    const r = await importRecipe(addFiles, text, link, addBusy.signal);
+    const r = await importRecipe(addFiles, text, link, addBusy.signal, t => { msg.textContent = t; });
     r.backTo = "add"; location.hash = r.id;
   }catch(e){
     btn.disabled = false; msg.textContent = importError(e);
@@ -2554,9 +2571,9 @@ async function shrinkImage(file){
 function remoteSample(api){
   async function call(input, opts = {}){
     const messages = typeof input === "string" ? [{ role: "user", content: input }] : input;
-    const images = await Promise.all((opts.images || []).map(shrinkImage));
+    const images = await Promise.all((opts.images || []).filter(f => !isVideo(f)).map(shrinkImage));
     let res;
-    try{ res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, images, fast: opts.modelTier === "quick", ...(opts.link ? { link: opts.link } : {}) }), signal: opts.signal }); }
+    try{ res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, images, fast: opts.modelTier === "quick", ...(opts.link ? { link: opts.link } : {}), ...(opts.video ? { video: opts.video } : {}) }), signal: opts.signal }); }
     catch(e){ throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
     const j = await res.json().catch(() => ({}));
     if(!res.ok) throw { code: j.code || "upstream_error" };
@@ -2570,11 +2587,31 @@ function remoteSample(api){
   };
   f.limits = async () => ({ images: { maxCount: 4, mediaTypes: ["image/*"] } });
   f.readsLinks = true;
+  f.readsVideo = true;
+  // מעלים את הסרטון לשף ומחכים שיהיה מוכן לצפייה
+  f.uploadVideo = async (file, signal, onStep) => {
+    if(file.size > 95e6) throw { code: "video_too_big" };
+    const mime = file.type === "video/quicktime" ? "video/mov" : file.type;
+    let res;
+    try{ res = await fetch(api + "video", { method: "POST", headers: { "Content-Type": mime }, body: file, signal }); }
+    catch(e){ throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
+    let v = await res.json().catch(() => ({}));
+    if(!res.ok) throw { code: v.code === "video_too_big" ? "video_too_big" : "video_failed" };
+    onStep && onStep();
+    for(let i = 0; v.state === "PROCESSING" && i < 40; i++){
+      await new Promise(r => setTimeout(r, 3000));
+      if(signal && signal.aborted) throw { code: "cancelled" };
+      const r = await fetch(api + "video?name=" + encodeURIComponent(v.name), { signal }).catch(() => null);
+      if(r && r.ok) v = await r.json();
+    }
+    if(v.state !== "ACTIVE") throw { code: "video_failed" };
+    return { uri: v.uri, mime: v.mime || mime };
+  };
   return f;
 }
 if(CHEF_API && !(window.claude && typeof window.claude.use === "function")){
   sampleFn = remoteSample(CHEF_API);
-  imgLimits = { maxCount: 4, mediaTypes: ["image/*"] };
+  imgLimits = { maxCount: 4, mediaTypes: ["image/*", "video/*"] };
 }
 function saveLocal(r){
   const id = "my-" + Date.now().toString(36);
@@ -2611,7 +2648,7 @@ function help(){
       "השף מראה קודם מתכונים מהספר שמתאימים, ואחר כך רעיונות חדשים. ״➕ עוד רעיונות״ מביא עוד.",
       "בכל רעיון אפשר ללחוץ ״✨ למתכון המלא״, ולשמור אותו בספר.",
       "<b>📷 מתכון מצילום מסך:</b> ראיתם מתכון באינסטגרם או בטיקטוק? מצלמים מסך, מצרפים עם הכפתור 📷 (אפשר להוסיף את הקישור לסרטון), והשף מסדר אותו בעברית.",
-      sampleFn && sampleFn.readsLinks ? "<b>🔗 מתכון מקישור:</b> אפשר גם רק להדביק קישור לסרטון או לאתר מתכונים. השף קורא את התיאור של הסרטון. אם המתכון נאמר רק בסרטון ולא כתוב בתיאור, צריך צילום מסך." : "השף לא יכול לפתוח קישורים בעצמו, לכן צריך צילום מסך של המתכון."])}
+      ...(sampleFn && sampleFn.readsLinks ? ["<b>🔗 מתכון מקישור:</b> אפשר גם רק להדביק קישור לסרטון או לאתר מתכונים. השף קורא את התיאור של הסרטון.", "<b>🎬 מתכון מסרטון:</b> כשהמתכון נאמר רק בסרטון, שומרים את הסרטון בטלפון ומצרפים אותו עם 📷. השף צופה בסרטון ומקשיב לו."] : ["השף לא יכול לפתוח קישורים בעצמו, לכן צריך צילום מסך של המתכון."])])}
     ${sec("➕","הוספת מתכון",[
       ai ? "מצילום מסך או מטקסט שמדביקים, או ידנית: שם, מרכיבים ושלבים, כל אחד בשורה." : "ידנית: שם, מרכיבים ושלבים, כל אחד בשורה.",
       "שורה שנגמרת בנקודתיים, כמו ״לציפוי:״, הופכת לכותרת."])}
