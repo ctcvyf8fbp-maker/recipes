@@ -2317,7 +2317,7 @@ async function chefImport(text, files, url, rest){
 async function askChef(text, files = [], more = false){
   if(chefBusy) return;
   const url = (text.match(/https?:\/\/\S+/) || [""])[0], rest = text.replace(url, "").trim();
-  if(files.length || (url && rest.length > 120)) return chefImport(text, files, url, rest);
+  if(files.length || (url && rest.length > 120) || (url && sampleFn && !sampleOff && sampleFn.readsLinks)) return chefImport(text, files, url, rest);
   if(url){
     addBubble("me", esc(text));
     addBubble("chef", `<p>אני לא יכול לפתוח קישורים מאינסטגרם או מטיקטוק. ${sampleFn && !sampleOff ? "שלחי צילום מסך של המתכון יחד עם הקישור (📷 ליד תיבת הכתיבה), ואכניס אותו לספר." : "בקישור של Claude אפשר לשלוח לי צילום מסך של המתכון יחד עם הקישור, ואכניס אותו לספר."}</p>`);
@@ -2455,10 +2455,10 @@ function addPage(){
     <header class="rh"><h2>הוספת מתכון</h2></header>
     ${adminBox()}
     ${ai ? `<section class="addbox"><h3>מצילום מסך או טקסט</h3>
-      <p class="muted">צלמי את המתכון מאינסטגרם, מטיקטוק או מספר, או הדביקי את הטקסט. השף יסדר אותו בעברית, עם מידות מטריות.</p>
+      <p class="muted">${sampleFn && sampleFn.readsLinks ? "הדביקי קישור לסרטון באינסטגרם, בטיקטוק או ביוטיוב, או לאתר מתכונים. אפשר גם צילום מסך או טקסט. השף יסדר את המתכון בעברית, עם מידות מטריות." : "צלמי את המתכון מאינסטגרם, מטיקטוק או מספר, או הדביקי את הטקסט. השף יסדר אותו בעברית, עם מידות מטריות."}</p>
       ${imgLimits ? `<label class="file"><input type="file" class="f-img" accept="${esc(imgLimits.mediaTypes.join(","))}" multiple>📷 בחירת צילומי מסך</label><div class="thumbs"></div>` : ""}
       <textarea class="f-paste" rows="4" placeholder="אפשר להדביק כאן את טקסט המתכון" aria-label="טקסט המתכון"></textarea>
-      <input class="f-alink" type="url" inputmode="url" placeholder="קישור לסרטון (לא חובה)" aria-label="קישור לסרטון">
+      <input class="f-alink" type="url" inputmode="url" placeholder="${sampleFn && sampleFn.readsLinks ? "קישור לסרטון או לאתר מתכונים" : "קישור לסרטון (לא חובה)"}" aria-label="קישור לסרטון">
       <div class="acts"><button class="act act-main" data-act="add-ai">✨ סידור המתכון</button></div>
       <p class="muted a-msg"></p></section>`
     : `<p class="note">סידור אוטומטי מצילום מסך זמין כשפותחים את הספר מהקישור של Claude. כאן אפשר להוסיף מתכון ידנית.</p>`}
@@ -2481,27 +2481,30 @@ function addPage(){
   window.scrollTo(0,0);
 }
 async function importRecipe(files, text, link, signal){
-  const prompt = `לפניך מתכון${files.length ? " בצילומי המסך המצורפים" : ""}${text ? " ובטקסט שלמטה" : ""}. חלצו אותו כמתכון מסודר בעברית: תרגמו אם הוא בשפה אחרת, המירו מידות למטריות וטמפרטורות לצלזיוס, ואל תשנו את המתכון עצמו ואל תמציאו מרכיבים או שלבים. השמיטו קודי הנחה, פרסומות ופניות לעוקבים. אם חסר חלק (למשל ההמשך נמצא בתגובות), החזירו מה שיש וכתבו בשדה missing מה חסר.
+  const useLink = !!(link && sampleFn.readsLinks);
+  const prompt = `לפניך מתכון${files.length ? " בצילומי המסך המצורפים" : ""}${text ? " ובטקסט שלמטה" : ""}${useLink ? (files.length || text ? ", וגם" : "") + " במה שנקרא מהקישור (תיאור הסרטון, הסרטון עצמו או עמוד המתכון)" : ""}. אם אין שם מספיק מידע למתכון, החזירו ingredients ו-steps ריקים. חלצו אותו כמתכון מסודר בעברית: תרגמו אם הוא בשפה אחרת, המירו מידות למטריות וטמפרטורות לצלזיוס, ואל תשנו את המתכון עצמו ואל תמציאו מרכיבים או שלבים. השמיטו קודי הנחה, פרסומות ופניות לעוקבים. אם חסר חלק (למשל ההמשך נמצא בתגובות), החזירו מה שיש וכתבו בשדה missing מה חסר.
 source: שם היוצר או היוצרת אם מופיע (למשל ‎@name באינסטגרם), אחרת מחרוזת ריקה.
 החזירו רק JSON בצורה הזו:
 {"title":"...","subtitle":"תיאור קצר","category":"אחת מ: ${CATS.join(", ")}","tags":["עד 3 תגיות"],"time":"","ingredients":[{"h":"כותרת קבוצה, לא חובה"},{"q":"200 גרם","t":"שם המרכיב"}],"steps":["..."],"note":"","source":"","missing":"","nutrition":{"servings":4,"per":"מנה","total":[קלוריות, חלבון בגרם, פחמימות בגרם, שומן בגרם]}}
 ב-nutrition: אם במקור מופיעים ערכים תזונתיים השתמשו בהם, אחרת הערכה לכל המתכון יחד (total) לפי המרכיבים, ומספר המנות או היחידות שהוא מתחלק אליהן (per למשל "מנה" או "לעוגייה").
 ${text ? "\nטקסט המתכון:\n" + text.slice(0, 12000) : ""}`;
-  const x = await sampleFn.json(prompt, { cache:false, signal, ...(files.length ? { images: files } : {}) });
+  const x = await sampleFn.json(prompt, { cache:false, signal, ...(files.length ? { images: files } : {}), ...(useLink ? { link } : {}) });
   const r = cleanRecipe({ ...(x||{}), video: link }, "tmp-" + Date.now().toString(36));
-  if(!r.ingredients.length && !r.steps.length) throw { code:"empty" };
+  if(!r.ingredients.length && !r.steps.length) throw { code: files.length || text.length > 40 ? "empty" : sampleFn.lastLink === "none" ? "link_closed" : "link_empty" };
   r.temp = true;
   r.tempMsg = "בדקי שהמתכון נקרא נכון לפני השמירה." + (x && x.missing ? " חסר: " + String(x.missing) : "");
   tempRecipes.push(r);
   return r;
 }
 const importError = e => e && e.code === "empty" ? "לא מצאתי מתכון בתמונות. נסי צילום ברור יותר." :
+  e && e.code === "link_closed" ? "לא הצלחתי לפתוח את הקישור. לפעמים אינסטגרם או טיקטוק חוסמים את זה. צלמי מסך של התיאור של הסרטון (המקום שבו כתוב המתכון) ושלחי אותו יחד עם הקישור." :
+  e && e.code === "link_empty" ? "פתחתי את הקישור, אבל המתכון לא כתוב בתיאור של הסרטון. כנראה הוא נאמר רק בסרטון. צלמי מסך של הרגעים בסרטון שבהם רואים את המרכיבים, או כתבי אותם, ושלחי עם הקישור." :
   e && e.code === "image_rejected" ? "אחת התמונות לא התקבלה. נסי תמונה אחרת." : chefError(e);
 async function addWithAI(btn){
   if(addBusy) return;
   const text = view.querySelector(".f-paste").value.trim(), link = view.querySelector(".f-alink").value.trim();
   const msg = view.querySelector(".a-msg");
-  if(!addFiles.length && !text){ msg.textContent = "צריך לבחור צילום מסך או להדביק טקסט."; return; }
+  if(!addFiles.length && !text && !(link && sampleFn.readsLinks)){ msg.textContent = sampleFn.readsLinks ? "צריך לבחור צילום מסך, להדביק טקסט או קישור." : "צריך לבחור צילום מסך או להדביק טקסט."; return; }
   btn.disabled = true; msg.textContent = "השף קורא את המתכון… זה יכול לקחת עד דקה.";
   addBusy = new AbortController();
   try{
@@ -2553,10 +2556,11 @@ function remoteSample(api){
     const messages = typeof input === "string" ? [{ role: "user", content: input }] : input;
     const images = await Promise.all((opts.images || []).map(shrinkImage));
     let res;
-    try{ res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, images, fast: opts.modelTier === "quick" }), signal: opts.signal }); }
+    try{ res = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, images, fast: opts.modelTier === "quick", ...(opts.link ? { link: opts.link } : {}) }), signal: opts.signal }); }
     catch(e){ throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
     const j = await res.json().catch(() => ({}));
     if(!res.ok) throw { code: j.code || "upstream_error" };
+    f.lastLink = j.link || "";
     return j.text || "";
   }
   const f = async (input, opts) => ({ text: await call(input, opts), truncated: false });
@@ -2565,6 +2569,7 @@ function remoteSample(api){
     try{ return JSON.parse(m ? m[0] : t); }catch(e){ throw { code: "upstream_error" }; }
   };
   f.limits = async () => ({ images: { maxCount: 4, mediaTypes: ["image/*"] } });
+  f.readsLinks = true;
   return f;
 }
 if(CHEF_API && !(window.claude && typeof window.claude.use === "function")){
@@ -2606,7 +2611,7 @@ function help(){
       "השף מראה קודם מתכונים מהספר שמתאימים, ואחר כך רעיונות חדשים. ״➕ עוד רעיונות״ מביא עוד.",
       "בכל רעיון אפשר ללחוץ ״✨ למתכון המלא״, ולשמור אותו בספר.",
       "<b>📷 מתכון מצילום מסך:</b> ראיתם מתכון באינסטגרם או בטיקטוק? מצלמים מסך, מצרפים עם הכפתור 📷 (אפשר להוסיף את הקישור לסרטון), והשף מסדר אותו בעברית.",
-      "השף לא יכול לפתוח קישורים בעצמו, לכן צריך צילום מסך של המתכון."])}
+      sampleFn && sampleFn.readsLinks ? "<b>🔗 מתכון מקישור:</b> אפשר גם רק להדביק קישור לסרטון או לאתר מתכונים. השף קורא את התיאור של הסרטון. אם המתכון נאמר רק בסרטון ולא כתוב בתיאור, צריך צילום מסך." : "השף לא יכול לפתוח קישורים בעצמו, לכן צריך צילום מסך של המתכון."])}
     ${sec("➕","הוספת מתכון",[
       ai ? "מצילום מסך או מטקסט שמדביקים, או ידנית: שם, מרכיבים ושלבים, כל אחד בשורה." : "ידנית: שם, מרכיבים ושלבים, כל אחד בשורה.",
       "שורה שנגמרת בנקודתיים, כמו ״לציפוי:״, הופכת לכותרת."])}
